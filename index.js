@@ -1,6 +1,31 @@
+const Debug = require('debug')('gtfs');
 let path = require('path')
 let express = require('express')
+const Cors = require("cors");
 let app = express()
+
+// restrict origin list
+let whitelist = [
+    'http://127.0.0.1:3000'
+];
+
+app.use(Cors({
+    origin: function(origin, callback){
+        // allow requests with no origin
+        Debug('origin: '+origin)
+        if(!origin){
+            return callback(null, true);
+        }
+        if(whitelist.indexOf(origin) === -1){
+            var message = 'The CORS policy for this origin does not allow access from the particular origin: '+origin;
+            return callback(new Error(message), false);
+        }
+        Debug('origin: '+origin+' allowed by cors');
+        return callback(null, true);
+    }
+}));
+
+
 let messages = [
   {text: 'hey', lang: 'english'},
   {text: 'isänme', lang: 'tatar'},
@@ -17,7 +42,7 @@ app.use (function(req, res, next) {
   req.on('end', function() {
     if (data.length <= 0 ) return next()
     data = Buffer.concat(data) // Make one large Buffer of it
-    console.log('Received buffer', data)
+    Debug('Received buffer', data)
     req.raw = data
     next()
   })
@@ -32,9 +57,9 @@ let Message = builder.build('Message')
 
 app.get('/api/messages', (req, res, next)=>{
   let msg = new Message(messages[Math.round(Math.random()*2)])
-  console.log('Encode and decode: ',
+  Debug('Encode and decode: ',
     Message.decode(msg.encode().toBuffer()))
-  console.log('Buffer we are sending: ', msg.encode().toBuffer())
+  Debug('Buffer we are sending: ', msg.encode().toBuffer())
   // res.end(msg.encode().toBuffer(), 'binary') // alternative
   res.send(msg.encode().toBuffer())
   // res.end(Buffer.from(msg.toArrayBuffer()), 'binary') // alternative
@@ -45,13 +70,13 @@ app.post('/api/messages', (req, res, next)=>{
     try {
         // Decode the Message
       var msg = Message.decode(req.raw)
-      console.log('Received "%s" in %s', msg.text, msg.lang)
+      Debug('Received "%s" in %s', msg.text, msg.lang)
     } catch (err) {
-      console.log('Processing failed:', err)
+      Debug('Processing failed:', err)
       next(err)
     }
   } else {
-    console.log("Not binary data")
+    Debug("Not binary data")
   }
 })
 
